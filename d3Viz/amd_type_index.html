@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" >
+ <head>
+	 <meta charset="utf-8" >
+	 <title>D3 Page Template</title>
+	 <script type="text/javascript" src="d3/d3.js" ></script>
+	 <style>
+
+		#myPieBody{
+		  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		  width: 800px;
+		  height: 500px;
+		  display:inline-block;
+		}
+		svg {
+			width: 100%;
+			height: 100%;
+		}
+		path.pie{
+			stroke-width:2px;
+		}
+		/*
+		polyline{
+			opacity: .3;
+			stroke: black;
+			stroke-width: 2px;
+			fill: none;
+		}
+		*/
+		#tooltip {
+			display:inline-block;
+			position: absolute;
+			width: 500px;
+			height: auto;
+			padding: 10px;
+			background-color: white;			
+			border-radius: 10px;
+			box-shadow: 4px 4px 10px rgba(0, 0, 0, 0. 4);
+			pointer-events: none;
+		}
+		#tooltip.hidden {
+			/*display: none;*/
+		}
+		#tooltip #mytable {
+			margin: 0;
+			font-family: sans-serif;
+			font-size: 9px;
+			line-height: 20px;
+		}
+		#myBarBody {
+			display:inline-block;
+			width: 100%;
+			height: 100%;
+		}
+		
+	 </style>
+ </head>
+ <body>
+ <header>
+	 <form>
+		<input type="radio" name="urls" onchange="handleChange(this.value);" value="fetched" checked="true"/>Fetched
+		<br>
+		<input type="radio" name="urls" onchange="handleChange(this.value);" value="unfetched"/>Unfetched
+	 </form> 
+ </header> 
+ <section id="myPieBody"></section>
+ <section id="tooltip">
+	<table id="mytable"></table>
+ </section>
+ <section id="myBarBody"></section>
+ <script type="text/javascript" >
+ 
+	var FETCHED = 0;
+	var UNFETCHED = 1;
+	var dataset;	
+	var THRESHOLD=0;
+	var color = d3.scale.category20();
+	d3.json("amd_types.json" , function(error, data) {
+		if (error) { //If error is not null, something went wrong.
+			 console. log(error);  //Log the error.
+		} else { //If no error, the file loaded correctly. Yay!			
+			 //Include other code to execute after successful file load here
+			
+			dataset = data;
+			generatePieVis(THRESHOLD, FETCHED);
+			generateBarVis(THRESHOLD, FETCHED);
+			
+		}
+	});
+	function handleChange(e){
+		//console.log(e);
+		d3.select("#myPieBody").selectAll("svg").remove();
+		d3.select("#myBarBody").selectAll("svg").remove();
+		if(e == "fetched"){
+			generatePieVis(THRESHOLD, FETCHED);
+			generateBarVis(THRESHOLD, FETCHED);
+		}else{
+			generatePieVis(THRESHOLD, UNFETCHED);
+			generateBarVis(THRESHOLD, UNFETCHED);
+		}
+	}
+	function generateBarVis(threshold=3, whichPie){
+		var bardata = dataset.fetched_table;
+		switch(whichPie){
+			case FETCHED:			
+			bardata = dataset.fetched_table;
+			break;
+			case UNFETCHED:
+			bardata = dataset.unfetched_table;
+			break;
+		}
+		bardata.sort(function(a, b) { return b.count - a.count; });
+		var w = 500;
+		var h = 500;
+		var barPadding = 1;
+		var maxv = bardata[0].count;
+		console.log(maxv);
+		var yScale = d3.scale.linear().domain([0, maxv]).range([0, h]);
+		//Create SVG element
+		var svg = d3.select("#myBarBody")
+			.append("svg")
+				.attr("width", w)
+					.attr("height", h);
+		svg. selectAll("rect")
+		.data(bardata)
+		.enter()
+		.append("rect" )
+		.attr("x" , 0)
+		.attr("y" , function(d){return h-yScale(d.count)})
+		.attr("width" , 20)
+		.attr("height" , function(d){
+			//console.log(yScale(d.count));
+			return yScale(d.count);
+		})
+		.attr("x" , function(d, i) {
+			return i * (w / bardata.length - barPadding);
+		}).style("fill", function(d, i) { return color(i); });
+
+
+		/* add legend */
+		var legend = svg.selectAll(".legend")
+			.data(bardata)
+			.enter().append("g")
+			.attr("class", "legend")
+			.attr("attr", "legend")
+			.attr("transform", function(d, i) { return "translate(500," + i * 20 + ")"; });
+
+		legend.append("rect")
+			.attr("x", w - 18)
+			.attr("width", 18)
+			.attr("height", 18)
+			.style("fill", function(d, i){return color(i);});
+
+		legend.append("text")
+			.attr("x", w - 24)
+			.attr("y", 9)
+			.attr("dy", ".35em")
+			.style("text-anchor", "end")
+			.text(function(d) { return d.category; });
+	}
+	function generatePieVis(threshold=3, whichPie){
+		var piedata = dataset.fetched_table;
+		piedata.sort(function(a, b) { return b.count - a.count; });
+		switch(whichPie){
+			case FETCHED:			
+			piedata = dataset.fetched_table;
+			break;
+			case UNFETCHED:
+			piedata = dataset.unfetched_table;
+			break;
+		}
+
+		var w = 500;
+		var h = 500;
+		var radius = Math.min(w, h) / 2;
+		
+		
+		
+		var arc = d3.svg.arc()
+			.outerRadius(radius * 0.8)
+			.innerRadius(radius * 0);
+
+		var outerArc = d3.svg.arc()
+			.innerRadius(radius * 0.8)
+			.outerRadius(radius * 0.8);		
+
+
+
+
+		//Create SVG element
+		var svg = d3.select("#myPieBody")
+			.append("svg").append("g");
+		svg.append("g").attr("class", "pies");
+		svg.append("g").attr("class", "labels");
+		svg.append("g").attr("class", "lines")
+
+		var pie = d3.layout.pie().value(function(d){
+			//console.log(d);
+			if(d.count>=threshold){
+				return d.count;
+			}else{
+				return 0;
+			}
+			
+			
+		});
+		svg.attr("transform", "translate(" + w * 2/3 + "," + h / 2 + ")");
+		var key = function(d){ 
+			//console.log(d);
+			return d.data.category; 
+		};
+
+		//console.log(pie(dataset.unfetched_table));
+		var pies = svg.select(".pies").selectAll("path.pie")
+			.data(pie(piedata));
+		
+		pies.enter()
+			.insert("path")
+				.attr("fill",function(d, i) {
+					return color(i);
+				}).attr("class", "pie")
+					.attr("d" , arc) //pie chart d for drawing data
+						.append("title")//tooltip text
+							.text(function(d) {
+								return d.data.count+", "+d.data.category ;
+							})
+		pies.on("mouseover",function(d) {
+			//Hide the tooltip
+			//Get this bar's x/y values, then augment for the tooltip
+			//var xPosition = parseFloat(d3. select(this). attr("x" )) + xScale. rangeBand() / 2;
+			//var yPosition = parseFloat(d3. select(this). attr("y" )) / 2 + h / 2;
+			//var coordinates = d3.mouse(this);
+			//var xpos = d3.event.pageX;
+			//var ypos = d3.event.pageY;
+			//console.log(xpos)
+			//Update the tooltip position and value
+			/*var toolkitValues = d3.select("#tooltip" )
+				.style("left" , xpos + "px" )
+					.style("top" , ypos + "px" )
+						.select("#value" ).selectAll("tr").data(d.data.examples);*/
+			if(d.data.examples){
+				var toolkitValues = d3.select("#tooltip")
+						.select("#mytable").selectAll("tr").data(d.data.examples);
+				toolkitValues.enter().insert("tr").insert("td").text(function(fd){
+					console.log(fd);
+					return fd;
+				});
+			}
+			
+			/*
+			var toolkitValues = d3.select("#tooltip")
+						.select("#value" ).selectAll("tr").data(d.data.examples);
+			toolkitValues.enter().append("tr").text(function(d){
+				//console.log(d);
+				return d;
+			});
+			*/				
+			//Show the tooltip
+			//d3.select("#tooltip" ).classed("hidden" , false);
+		});
+
+		pies.on("mouseout",function(d) {
+			//Hide the tooltip
+			d3.select("#tooltip" )
+			var toolkitValues = d3.select("#mytable" )
+			toolkitValues.selectAll("tr").remove();
+		});
+
+		pies.transition().duration(1000).attrTween("d", function(d) {
+			this._current = this._current || d;
+			var interpolate = d3.interpolate(this._current, d);
+			this._current = interpolate(0);
+			return function(t) {
+				return arc(interpolate(t));
+			};
+		})
+		pies.exit().remove();
+	
+
+		
+
+		/* ------- TEXT LABELS -------*/
+		var text = svg.select(".labels").selectAll("text")
+			.data(pie(piedata));
+		
+		function midAngle(d){
+			return d.startAngle + (d.endAngle - d.startAngle)/2;
+		}
+
+		text.enter()
+			.append("text")
+			.attr("dy", ".35em")
+			.text(function(d) {
+				if(d.data.count>=threshold){
+					return d.data.category;
+				}else{
+					return "";
+				}
+				 
+		});
+
+		text.transition().duration(1000).attrTween("transform", function(d) {
+			this._current = this._current || d;
+		//	console.log(d);
+			
+			var interpolate = d3.interpolate(this._current, d);
+			this._current = interpolate(0);
+			return function(t) {
+				var d2 = interpolate(t);
+				var pos = outerArc.centroid(d2);
+				//console.log(t);
+				pos[0] = radius * (midAngle(d2) < Math.PI ? 1 : -1);
+				return "translate("+ pos +")";
+			};
+		}).styleTween("text-anchor", function(d){
+			this._current = this._current || d;
+			var interpolate = d3.interpolate(this._current, d);
+			this._current = interpolate(0);
+			return function(t) {
+				var d2 = interpolate(t);
+				return midAngle(d2) < Math.PI ? "start":"end";
+			};
+		});
+		text.exit().remove();
+
+
+		/* ------- SLICE TO TEXT POLYLINES -------*/
+
+		var polyline = svg.select(".lines").selectAll("polyline")
+			.data(pie(piedata));
+		
+		polyline.enter()
+			.append("polyline")
+			.attr("opacity","0.3")
+			.attr("stroke-width","2px")
+			.attr("fill","none")
+			.attr("stroke", function(d, i){
+				if(d.data.count >= threshold){
+					return "black";
+				}
+				return "none";
+			});
+
+		polyline.transition().duration(1000)
+			.attrTween("points", function(d){
+				this._current = this._current || d;
+				var interpolate = d3.interpolate(this._current, d);
+				this._current = interpolate(0);
+				return function(t) {
+					var d2 = interpolate(t);
+					var pos = outerArc.centroid(d2);
+					pos[0] = radius * 0.95 * (midAngle(d2) < Math.PI ? 1 : -1);
+					return [arc.centroid(d2), outerArc.centroid(d2), pos];
+				};			
+			});
+		
+		polyline.exit().remove();
+
+	}
+ </script>
+ </body>
+</html>
